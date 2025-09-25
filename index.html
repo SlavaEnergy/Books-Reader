@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Читалка книг</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #121212;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    a {
+      color: #90caf9;
+      text-decoration: none;
+      display: block;
+      margin: 10px 0;
+    }
+    #reader {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    #pageInput {
+      margin: 10px;
+      background: #1e1e1e;
+      color: #eee;
+      border: 1px solid #555;
+      padding: 5px;
+      width: 60px;
+      text-align: center;
+    }
+    #pages {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+    #pages img {
+      max-height: 80vh;
+      max-width: 45vw;
+      background: #222;
+      padding: 5px;
+      border-radius: 5px;
+      transition: transform 0.3s ease;
+    }
+    #controls {
+      margin: 15px;
+    }
+    button {
+      background: #333;
+      color: #eee;
+      border: none;
+      padding: 8px 15px;
+      margin: 5px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:hover {
+      background: #444;
+    }
+  </style>
+</head>
+<body>
+  <h1>Мои книги</h1>
+  <div id="bookList"></div>
+
+  <div id="reader">
+    <button id="backBtn">← Назад к книгам</button>
+    <input type="number" id="pageInput" min="1" value="1">
+    <div id="pages">
+      <img id="pageLeft" src="">
+      <img id="pageRight" src="">
+    </div>
+    <div id="controls">
+      <button id="prevBtn">← Предыдущая</button>
+      <button id="nextBtn">Следующая →</button>
+    </div>
+  </div>
+
+  <script>
+    // Список книг (можно руками или генерировать JSON)
+    const books = {
+      "Книга 1": "books/book1",
+      "Книга 2": "books/book2"
+    };
+
+    const bookListDiv = document.getElementById("bookList");
+    const readerDiv = document.getElementById("reader");
+    const backBtn = document.getElementById("backBtn");
+    const pageInput = document.getElementById("pageInput");
+    const pageLeft = document.getElementById("pageLeft");
+    const pageRight = document.getElementById("pageRight");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    let currentBook = null;
+    let currentPage = 1;
+
+    // Показываем список книг
+    for (let [title, path] of Object.entries(books)) {
+      const link = document.createElement("a");
+      link.textContent = title;
+      link.href = "#";
+      link.onclick = () => openBook(path);
+      bookListDiv.appendChild(link);
+    }
+
+    function openBook(path) {
+      currentBook = path;
+      currentPage = 1;
+      bookListDiv.style.display = "none";
+      readerDiv.style.display = "flex";
+      loadPage();
+    }
+
+    function loadPage() {
+      pageInput.value = currentPage;
+      pageLeft.src = `${currentBook}/${currentPage}.jpg`;
+      pageRight.src = `${currentBook}/${currentPage + 1}.jpg`;
+    }
+
+    pageInput.onchange = () => {
+      currentPage = parseInt(pageInput.value) || 1;
+      loadPage();
+    };
+
+    prevBtn.onclick = () => {
+      if (currentPage > 1) {
+        currentPage -= 2;
+        if (currentPage < 1) currentPage = 1;
+        loadPage();
+      }
+    };
+
+    nextBtn.onclick = () => {
+      currentPage += 2;
+      loadPage();
+    };
+
+    backBtn.onclick = () => {
+      readerDiv.style.display = "none";
+      bookListDiv.style.display = "block";
+    };
+  </script>
+</body>
+</html>
