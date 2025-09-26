@@ -39,7 +39,7 @@ a {
   justify-content: center;
   align-items: center;
   gap: 10px;
-  perspective: 1000px; /* для 3D эффекта */
+  perspective: 1000px;
 }
 #pages img {
   max-height: 80vh;
@@ -66,6 +66,9 @@ button:hover {
   background: #444;
 }
 </style>
+
+<!-- jsPDF для скачивания PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -82,13 +85,16 @@ button:hover {
   <div id="controls">
     <button id="prevBtn">← Предыдущая</button>
     <button id="nextBtn">Следующая →</button>
+    <button id="downloadBtn">📥 Скачать книгу</button>
   </div>
 </div>
 
 <audio id="flipSound" src="flip.mp3" preload="auto"></audio>
 
 <script>
-// Список книг
+const { jsPDF } = window.jspdf;
+
+// --- список книг ---
 const books = {
   "Книга 1": "books/book1",
   "Книга 2": "books/book2"
@@ -102,12 +108,13 @@ const pageLeft = document.getElementById("pageLeft");
 const pageRight = document.getElementById("pageRight");
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
+const downloadBtn = document.getElementById("downloadBtn");
 const flipSound = document.getElementById("flipSound");
 
 let currentBook = null;
 let currentPage = 1;
 
-// Показываем список книг
+// --- выводим список книг ---
 for (let [title, path] of Object.entries(books)) {
   const link = document.createElement("a");
   link.textContent = title;
@@ -116,6 +123,7 @@ for (let [title, path] of Object.entries(books)) {
   bookListDiv.appendChild(link);
 }
 
+// --- открытие книги ---
 function openBook(path) {
   currentBook = path;
   currentPage = 1;
@@ -124,6 +132,7 @@ function openBook(path) {
   loadPage(true);
 }
 
+// --- загрузка страниц ---
 function loadPage(animated = true) {
   pageInput.value = currentPage;
 
@@ -144,11 +153,13 @@ function loadPage(animated = true) {
   }
 }
 
+// --- ввод страницы вручную ---
 pageInput.onchange = () => {
   currentPage = parseInt(pageInput.value) || 1;
   loadPage();
 };
 
+// --- листание страниц ---
 prevBtn.onclick = () => {
   if (currentPage > 1) {
     currentPage -= 2;
@@ -162,9 +173,56 @@ nextBtn.onclick = () => {
   loadPage();
 };
 
+// --- возврат к списку книг ---
 backBtn.onclick = () => {
   readerDiv.style.display = "none";
   bookListDiv.style.display = "block";
+};
+
+// --- функция загрузки изображения ---
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+// --- проверка существования изображения ---
+function imageExists(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+
+// --- скачивание книги в PDF ---
+downloadBtn.onclick = async () => {
+  if (!currentBook) return;
+
+  const pdf = new jsPDF({ orientation: "landscape" });
+  let pageNumber = 1;
+
+  while (true) {
+    const imgPath = `${currentBook}/${pageNumber}.jpg`;
+    if (!await imageExists(imgPath)) break;
+
+    const img = await loadImage(imgPath);
+    const imgWidth = pdf.internal.pageSize.getWidth();
+    const imgHeight = pdf.internal.pageSize.getHeight();
+    pdf.addImage(img, "JPEG", 0, 0, imgWidth, imgHeight);
+
+    pageNumber++;
+    if (await imageExists(`${currentBook}/${pageNumber}.jpg`)) {
+      pdf.addPage();
+    }
+  }
+
+  pdf.save(currentBook.split("/").pop() + ".pdf");
 };
 </script>
 
