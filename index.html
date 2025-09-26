@@ -206,15 +206,34 @@ downloadBtn.onclick = async () => {
 
   const pdf = new jsPDF({ orientation: "landscape" });
   let pageNumber = 1;
+  let firstPage = true;
 
   while (true) {
     const imgPath = `${currentBook}/${pageNumber}.jpg`;
     if (!await imageExists(imgPath)) break;
 
     const img = await loadImage(imgPath);
-    const imgWidth = pdf.internal.pageSize.getWidth();
-    const imgHeight = pdf.internal.pageSize.getHeight();
-    pdf.addImage(img, "JPEG", 0, 0, imgWidth, imgHeight);
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgRatio = img.width / img.height;
+    const pageRatio = pageWidth / pageHeight;
+
+    let renderWidth, renderHeight, x, y;
+
+    if (imgRatio > pageRatio) {
+      renderWidth = pageWidth;
+      renderHeight = pageWidth / imgRatio;
+      x = 0;
+      y = (pageHeight - renderHeight) / 2;
+    } else {
+      renderHeight = pageHeight;
+      renderWidth = pageHeight * imgRatio;
+      y = 0;
+      x = (pageWidth - renderWidth) / 2;
+    }
+
+    pdf.addImage(img, "JPEG", x, y, renderWidth, renderHeight);
 
     pageNumber++;
     if (await imageExists(`${currentBook}/${pageNumber}.jpg`)) {
@@ -228,4 +247,5 @@ downloadBtn.onclick = async () => {
 
 </body>
 </html>
+
 
