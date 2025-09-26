@@ -97,7 +97,7 @@ const { jsPDF } = window.jspdf;
 // --- список книг ---
 const books = {
   "Информационные технологии": "books/Информационные технологии",
-  "Тестовая книга": "books/-"
+  "Обществознание": "books/Обществознание"
 };
 
 const bookListDiv = document.getElementById("bookList");
@@ -136,14 +136,16 @@ function openBook(path) {
 function loadPage(animated = true) {
   pageInput.value = currentPage;
 
-  if(animated){
+  if (animated) {
     pageLeft.style.transform = "rotateY(-180deg)";
-    pageRight.style.transform = "rotateY(-180deg)";
+    pageRight.style.transform = "rotateY(180deg)";
     flipSound.currentTime = 0;
     flipSound.play();
+
     setTimeout(() => {
       pageLeft.src = `${currentBook}/${currentPage}.jpg`;
       pageRight.src = `${currentBook}/${currentPage + 1}.jpg`;
+
       pageLeft.style.transform = "rotateY(0deg)";
       pageRight.style.transform = "rotateY(0deg)";
     }, 250);
@@ -247,6 +249,7 @@ downloadBtn.onclick = async () => {
 
 </body>
 </html>
+
 
 
 
