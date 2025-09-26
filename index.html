@@ -137,8 +137,8 @@ function loadPage(animated = true) {
   pageInput.value = currentPage;
 
   if (animated) {
-    pageLeft.style.transform = "rotateY(-180deg)";
-    pageRight.style.transform = "rotateY(180deg)";
+    pageLeft.style.transform = "rotateY(180deg)";
+    pageRight.style.transform = "rotateY(-180deg)";
     flipSound.currentTime = 0;
     flipSound.play();
 
@@ -249,6 +249,7 @@ downloadBtn.onclick = async () => {
 
 </body>
 </html>
+
 
 
 
