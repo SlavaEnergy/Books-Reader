@@ -1,147 +1,231 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Books Reader</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background: #222;
-      color: white;
-      padding: 15px;
-      text-align: center;
-    }
-    .library {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 15px;
-      padding: 20px;
-    }
-    .book {
-      background: white;
-      border-radius: 8px;
-      padding: 15px;
-      text-align: center;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .book:hover {
-      transform: scale(1.05);
-    }
-    #reader {
-      display: none;
-      padding: 20px;
-    }
-    canvas {
-      display: block;
-      margin: auto;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-    .controls {
-      text-align: center;
-      margin-top: 10px;
-    }
-    button {
-      margin: 5px;
-      padding: 10px 15px;
-      cursor: pointer;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Books Reader</title>
+<style>
+body {
+  margin: 0;
+  font-family: sans-serif;
+  background: #121212;
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+a {
+  color: #90caf9;
+  text-decoration: none;
+  display: block;
+  margin: 10px 0;
+}
+#reader {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+#pageInput {
+  margin: 10px;
+  background: #1e1e1e;
+  color: #eee;
+  border: 1px solid #555;
+  padding: 5px;
+  width: 60px;
+  text-align: center;
+}
+#pages {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  perspective: 1000px;
+}
+#pages img {
+  max-height: 80vh;
+  max-width: 45vw;
+  background: #222;
+  padding: 5px;
+  border-radius: 5px;
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease;
+}
+#controls {
+  margin: 15px;
+}
+button {
+  background: #333;
+  color: #eee;
+  border: none;
+  padding: 8px 15px;
+  margin: 5px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+button:hover {
+  background: #444;
+}
+</style>
+
+<!-- jsPDF для скачивания PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-<header>
-  <h1>Books Reader</h1>
-</header>
 
-<div class="library" id="library"></div>
+<h1>Мои книги</h1>
+<div id="bookList"></div>
 
 <div id="reader">
-  <canvas id="pdf-render"></canvas>
-  <div class="controls">
-    <button onclick="prevPage()">Назад</button>
-    <span id="page-info"></span>
-    <button onclick="nextPage()">Вперёд</button>
-    <br>
-    <button onclick="downloadBook()">📥 Загрузить на устройство</button>
+  <button id="backBtn">← Назад к книгам</button>
+  <input type="number" id="pageInput" min="1" value="1">
+  <div id="pages">
+    <img id="pageLeft" src="">
+    <img id="pageRight" src="">
+  </div>
+  <div id="controls">
+    <button id="prevBtn">← Предыдущая</button>
+    <button id="nextBtn">Следующая →</button>
+    <button id="downloadBtn">📥 Скачать книгу</button>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+<audio id="flipSound" src="flip.mp3" preload="auto"></audio>
+
 <script>
-let pdfDoc = null, pageNum = 1, pageRendering = false, canvas, ctx, currentBook;
+const { jsPDF } = window.jspdf;
 
-document.addEventListener("DOMContentLoaded", () => {
-  canvas = document.getElementById("pdf-render");
-  ctx = canvas.getContext("2d");
+// --- список книг ---
+const books = {
+  "Информационные технологии": "books/Информационные технологии",
+  "Книга 2": "books/book2"
+};
 
-  // Загружаем список книг
-  fetch("books.json")
-    .then(res => res.json())
-    .then(books => {
-      const library = document.getElementById("library");
-      books.forEach(book => {
-        const div = document.createElement("div");
-        div.className = "book";
-        div.innerText = book.title;
-        div.onclick = () => loadBook(book.id);
-        library.appendChild(div);
-      });
-    });
-});
+const bookListDiv = document.getElementById("bookList");
+const readerDiv = document.getElementById("reader");
+const backBtn = document.getElementById("backBtn");
+const pageInput = document.getElementById("pageInput");
+const pageLeft = document.getElementById("pageLeft");
+const pageRight = document.getElementById("pageRight");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const downloadBtn = document.getElementById("downloadBtn");
+const flipSound = document.getElementById("flipSound");
 
-function loadBook(bookId) {
-  currentBook = bookId;
-  document.getElementById("library").style.display = "none";
-  document.getElementById("reader").style.display = "block";
-  const url = `books/${bookId}/book.pdf`;
+let currentBook = null;
+let currentPage = 1;
 
-  pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
-    pdfDoc = pdfDoc_;
-    pageNum = 1;
-    renderPage(pageNum);
-  });
-}
-
-function renderPage(num) {
-  pageRendering = true;
-  pdfDoc.getPage(num).then(page => {
-    const viewport = page.getViewport({scale: 1.5});
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-
-    const renderContext = {canvasContext: ctx, viewport: viewport};
-    page.render(renderContext).promise.then(() => {
-      pageRendering = false;
-      document.getElementById("page-info").textContent = 
-        `Страница ${num} из ${pdfDoc.numPages}`;
-    });
-  });
-}
-
-function prevPage() {
-  if (pageNum <= 1) return;
-  pageNum--;
-  renderPage(pageNum);
-}
-function nextPage() {
-  if (pageNum >= pdfDoc.numPages) return;
-  pageNum++;
-  renderPage(pageNum);
-}
-
-// Скачать книгу
-function downloadBook() {
+// --- выводим список книг ---
+for (let [title, path] of Object.entries(books)) {
   const link = document.createElement("a");
-  link.href = `books/${currentBook}/book.pdf`;
-  link.download = `${currentBook}.pdf`;
-  link.click();
+  link.textContent = title;
+  link.href = "#";
+  link.onclick = () => openBook(path);
+  bookListDiv.appendChild(link);
 }
+
+// --- открытие книги ---
+function openBook(path) {
+  currentBook = path;
+  currentPage = 1;
+  bookListDiv.style.display = "none";
+  readerDiv.style.display = "flex";
+  loadPage(true);
+}
+
+// --- загрузка страниц ---
+function loadPage(animated = true) {
+  pageInput.value = currentPage;
+
+  if(animated){
+    pageLeft.style.transform = "rotateY(-180deg)";
+    pageRight.style.transform = "rotateY(-180deg)";
+    flipSound.currentTime = 0;
+    flipSound.play();
+    setTimeout(() => {
+      pageLeft.src = `${currentBook}/${currentPage}.jpg`;
+      pageRight.src = `${currentBook}/${currentPage + 1}.jpg`;
+      pageLeft.style.transform = "rotateY(0deg)";
+      pageRight.style.transform = "rotateY(0deg)";
+    }, 250);
+  } else {
+    pageLeft.src = `${currentBook}/${currentPage}.jpg`;
+    pageRight.src = `${currentBook}/${currentPage + 1}.jpg`;
+  }
+}
+
+// --- ввод страницы вручную ---
+pageInput.onchange = () => {
+  currentPage = parseInt(pageInput.value) || 1;
+  loadPage();
+};
+
+// --- листание страниц ---
+prevBtn.onclick = () => {
+  if (currentPage > 1) {
+    currentPage -= 2;
+    if (currentPage < 1) currentPage = 1;
+    loadPage();
+  }
+};
+
+nextBtn.onclick = () => {
+  currentPage += 2;
+  loadPage();
+};
+
+// --- возврат к списку книг ---
+backBtn.onclick = () => {
+  readerDiv.style.display = "none";
+  bookListDiv.style.display = "block";
+};
+
+// --- функция загрузки изображения ---
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+// --- проверка существования изображения ---
+function imageExists(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+
+// --- скачивание книги в PDF ---
+downloadBtn.onclick = async () => {
+  if (!currentBook) return;
+
+  const pdf = new jsPDF({ orientation: "landscape" });
+  let pageNumber = 1;
+
+  while (true) {
+    const imgPath = `${currentBook}/${pageNumber}.jpg`;
+    if (!await imageExists(imgPath)) break;
+
+    const img = await loadImage(imgPath);
+    const imgWidth = pdf.internal.pageSize.getWidth();
+    const imgHeight = pdf.internal.pageSize.getHeight();
+    pdf.addImage(img, "JPEG", 0, 0, imgWidth, imgHeight);
+
+    pageNumber++;
+    if (await imageExists(`${currentBook}/${pageNumber}.jpg`)) {
+      pdf.addPage();
+    }
+  }
+
+  pdf.save(currentBook.split("/").pop() + ".pdf");
+};
 </script>
+
 </body>
 </html>
+
