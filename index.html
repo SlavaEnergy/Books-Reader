@@ -24,6 +24,7 @@ a {
   flex-direction: column;
   align-items: center;
   width: 100%;
+  position: relative;
 }
 #pageInput {
   margin: 10px;
@@ -41,7 +42,10 @@ a {
   gap: 10px;
   perspective: 1000px;
 }
-#pages img {
+.pageWrapper {
+  position: relative;
+}
+.pageWrapper img {
   max-height: 80vh;
   max-width: 45vw;
   background: #222;
@@ -49,6 +53,22 @@ a {
   border-radius: 5px;
   transform-style: preserve-3d;
   transition: transform 0.5s ease;
+  display: block;
+}
+.overlayText {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px;
+  color: #00ffcc;
+  font-size: 14px;
+  line-height: 1.4;
+  background: rgba(0,0,0,0.3);
+  overflow-y: auto;
+  pointer-events: none;
+  white-space: pre-wrap;
 }
 #controls {
   margin: 15px;
@@ -65,10 +85,17 @@ button {
 button:hover {
   background: #444;
 }
+#ocrBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
 </style>
 
 <!-- jsPDF для скачивания PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Tesseract.js для OCR -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 
@@ -78,10 +105,21 @@ button:hover {
 <div id="reader">
   <button id="backBtn">← Назад к книгам</button>
   <input type="number" id="pageInput" min="1" value="1">
+
+  <!-- Кнопка OCR -->
+  <button id="ocrBtn">Распознать текст</button>
+
   <div id="pages">
-    <img id="pageLeft" src="">
-    <img id="pageRight" src="">
+    <div class="pageWrapper">
+      <img id="pageLeft" src="">
+      <div id="textLeft" class="overlayText"></div>
+    </div>
+    <div class="pageWrapper">
+      <img id="pageRight" src="">
+      <div id="textRight" class="overlayText"></div>
+    </div>
   </div>
+
   <div id="controls">
     <button id="prevBtn">← Предыдущая</button>
     <button id="nextBtn">Следующая →</button>
@@ -111,6 +149,10 @@ const nextBtn = document.getElementById("nextBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const flipSound = document.getElementById("flipSound");
 
+const textLeft = document.getElementById("textLeft");
+const textRight = document.getElementById("textRight");
+const ocrBtn = document.getElementById("ocrBtn");
+
 let currentBook = null;
 let currentPage = 1;
 
@@ -135,6 +177,10 @@ function openBook(path) {
 // --- загрузка страниц ---
 function loadPage(animated = true) {
   pageInput.value = currentPage;
+
+  // очищаем наложенный текст при смене страниц
+  textLeft.textContent = "";
+  textRight.textContent = "";
 
   if (animated) {
     pageLeft.style.transform = "rotateY(180deg)";
@@ -208,7 +254,6 @@ downloadBtn.onclick = async () => {
 
   const pdf = new jsPDF({ orientation: "landscape" });
   let pageNumber = 1;
-  let firstPage = true;
 
   while (true) {
     const imgPath = `${currentBook}/${pageNumber}.jpg`;
@@ -245,13 +290,25 @@ downloadBtn.onclick = async () => {
 
   pdf.save(currentBook.split("/").pop() + ".pdf");
 };
+
+// --- OCR (распознавание текста) ---
+ocrBtn.onclick = async () => {
+  if (!pageLeft.src && !pageRight.src) return;
+
+  textLeft.textContent = "Распознование...";
+  textRight.textContent = "Распознование...";
+
+  if (pageLeft.src) {
+    const { data: { text } } = await Tesseract.recognize(pageLeft.src, 'rus+eng');
+    textLeft.textContent = text.trim();
+  }
+
+  if (pageRight.src) {
+    const { data: { text } } = await Tesseract.recognize(pageRight.src, 'rus+eng');
+    textRight.textContent = text.trim();
+  }
+};
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
